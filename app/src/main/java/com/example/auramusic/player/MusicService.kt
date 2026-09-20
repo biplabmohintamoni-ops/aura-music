@@ -9,6 +9,8 @@ import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
 
+import com.example.auramusic.data.provider.OnlineMusicProvider
+
 class MusicService : MediaSessionService() {
 
     private var mediaSession: MediaSession? = null
@@ -22,9 +24,12 @@ class MusicService : MediaSessionService() {
             .setContentType(C.AUDIO_CONTENT_TYPE_MUSIC)
             .build()
 
-        val dataSourceFactory = DefaultHttpDataSource.Factory()
-            .setUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36")
-            .setAllowCrossProtocolRedirects(true)
+        val dataSourceFactory = androidx.media3.datasource.DataSource.Factory {
+            DefaultHttpDataSource.Factory()
+                .setUserAgent(OnlineMusicProvider.activeStreamUserAgent)
+                .setAllowCrossProtocolRedirects(true)
+                .createDataSource()
+        }
             
         val mediaSourceFactory = DefaultMediaSourceFactory(this)
             .setDataSourceFactory(dataSourceFactory)

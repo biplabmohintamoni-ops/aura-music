@@ -91,24 +91,40 @@ class OnlineMusicProvider : MusicProvider {
             return candidates
         }
 
+        var activeStreamUserAgent: String
+            get() = com.example.auramusic.engine.MusifyEngine.activeUserAgent
+            set(value) {
+                com.example.auramusic.engine.MusifyEngine.activeUserAgent = value
+            }
+
         fun fetchHttpGet(urlString: String, userAgent: String? = null): String {
             return fetchHttp(urlString, "GET", null, userAgent)
         }
 
-        fun fetchHttpPost(urlString: String, body: String, userAgent: String? = null): String {
-            return fetchHttp(urlString, "POST", body, userAgent)
+        fun fetchHttpPost(urlString: String, body: String, userAgent: String? = null, extraHeaders: Map<String, String>? = null): String {
+            return fetchHttp(urlString, "POST", body, userAgent, extraHeaders)
         }
 
-        private fun fetchHttp(urlString: String, method: String, body: String?, userAgent: String? = null): String {
+        private fun fetchHttp(
+            urlString: String, 
+            method: String, 
+            body: String?, 
+            userAgent: String? = null,
+            extraHeaders: Map<String, String>? = null
+        ): String {
             val url = URL(urlString)
             val conn = url.openConnection() as HttpURLConnection
             try {
                 conn.requestMethod = method
                 conn.connectTimeout = CONNECT_TIMEOUT_MS
                 conn.readTimeout = READ_TIMEOUT_MS
-                conn.setRequestProperty("User-Agent", userAgent ?: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36")
+                conn.setRequestProperty("User-Agent", userAgent ?: activeStreamUserAgent)
                 conn.setRequestProperty("Accept", "application/json, text/plain, */*")
                 
+                extraHeaders?.forEach { (key, value) ->
+                    conn.setRequestProperty(key, value)
+                }
+
                 if (body != null) {
                     conn.doOutput = true
                     conn.setRequestProperty("Content-Type", "application/json")
@@ -116,7 +132,7 @@ class OnlineMusicProvider : MusicProvider {
                 }
 
                 val responseCode = conn.responseCode
-                if (responseCode == 403) {
+                if (responseCode == 403 && urlString.contains("googleapis.com/youtube/v3/")) {
                     AuraSharedBackendCache.markQuotaExceeded()
                     throw Exception("HTTP 403: YouTube quota or access limit reached")
                 }
@@ -137,115 +153,30 @@ class OnlineMusicProvider : MusicProvider {
             }
         }
 
+        private fun getSanitizedApiKey(): String? {
+            val key = OwnerConfig.YOUTUBE_DATA_API_KEY.trim()
+            if (key.isBlank() || 
+                key == "YOUR_YOUTUBE_API_KEY_HERE" || 
+                key.startsWith("YOUR_") || 
+                key.startsWith("AIzaSyC1In-") || 
+                key.contains("YOUTUBE_API_KEY")
+            ) {
+                return null
+            }
+            return key
+        }
+
         /**
-         * Resolves a direct audio stream URL for a YouTube video ID.
-         * Uses the ANDROID client context which is more resilient to LOGIN_REQUIRED errors.
+         * Resolves a direct audio stream URL for a YouTube video ID via MusifyEngine.
          */
         suspend fun resolveStreamUrl(videoId: String): Result<String> = withContext(Dispatchers.IO) {
-            val clientName = "ANDROID"
-            val clientVersion = "19.30.36"
-            val userAgent = "com.google.android.youtube/$clientVersion (Linux; U; Android 12; en_US; Pixel 6)"
-            try {
-                Log.i(TAG, "RESOLVE_STREAM_START | VIDEO_ID: $videoId | CLIENT_USED: $clientName")
-                val body = JSONObject().apply {
-                    put("videoId", videoId)
-                    put("context", JSONObject().apply {
-                        put("client", JSONObject().apply {
-                            put("clientName", clientName)
-                            put("clientVersion", clientVersion)
-                            put("hl", "en")
-                            put("gl", "US")
-                            put("androidSdkVersion", 31)
-                        })
-                    })
-                    put("playbackContext", JSONObject().apply {
-                        put("contentCheckOk", true)
-                        put("racyCheckOk", true)
-                    })
-                }
-                val apiKey = OwnerConfig.YOUTUBE_DATA_API_KEY.ifBlank { "AIzaSyC1In-Yq6I-Yq6I-Yq6I-Yq6I-Yq6I" }
-                val url = "https://www.youtube.com/youtubei/v1/player?alt=json&key=$apiKey"
-                val response = fetchHttpPost(url, body.toString(), userAgent)
-                val json = JSONObject(response)
-                
-                // Check playabilityStatus
-                val playabilityStatus = json.optJSONObject("playabilityStatus")
-                val status = playabilityStatus?.optString("status") ?: "MISSING"
-                Log.i(TAG, "RESOLVE_STREAM_STATUS | VIDEO_ID: $videoId | PLAYABILITY_STATUS: $status")
+            Log.i(TAG, "RESOLVE_STREAM_START | VIDEO_ID: $videoId")
 
-                if (status != "OK") {
-                    val reason = playabilityStatus?.optString("reason") ?: "Unknown reason"
-                    Log.e(TAG, "RESOLVE_STREAM_FAILED | VIDEO_ID: $videoId | STATUS: $status | REASON: $reason")
-                    return@withContext Result.failure(Exception("YouTube Error: $status ($reason)"))
-                }
-
-                val streamingData = json.optJSONObject("streamingData")
-                if (streamingData == null) {
-                    Log.e(TAG, "RESOLVE_STREAM_FAILED | VIDEO_ID: $videoId | ERROR: STREAMING_DATA_MISSING")
-                    return@withContext Result.failure(Exception("No streaming data available"))
-                }
-                
-                // 1. Try Adaptive Formats (Audio Only)
-                val adaptiveFormats = streamingData.optJSONArray("adaptiveFormats")
-                var bestUrl: String? = null
-                var bestBitrate = 0
-                var selectedMime = "none"
-                val formatCount = adaptiveFormats?.length() ?: 0
-                Log.i(TAG, "RESOLVE_STREAM_FORMATS | VIDEO_ID: $videoId | AVAILABLE_FORMAT_COUNT: $formatCount")
-                
-                if (adaptiveFormats != null) {
-                    for (i in 0 until adaptiveFormats.length()) {
-                        val format = adaptiveFormats.getJSONObject(i)
-                        val mimeType = format.optString("mimeType", "")
-                        
-                        if (mimeType.contains("audio/")) {
-                            val streamUrl = format.optString("url")
-                            // If url is missing, it's likely a cipher-protected format we can't play without deciphering
-                            if (streamUrl.isNotBlank()) {
-                                val bitrate = format.optInt("bitrate", 0)
-                                if (bitrate > bestBitrate) {
-                                    bestBitrate = bitrate
-                                    bestUrl = streamUrl
-                                    selectedMime = mimeType
-                                }
-                            }
-                        }
-                    }
-                }
-                
-                // 2. Try HLS Manifest (Often more reliable for direct playback)
-                val hlsUrl = streamingData.optString("hlsManifestUrl")
-                if (bestUrl == null && hlsUrl.isNotBlank()) {
-                    Log.i(TAG, "RESOLVE_STREAM_SUCCESS | VIDEO_ID: $videoId | SOURCE: HLS_MANIFEST")
-                    return@withContext Result.success(hlsUrl)
-                }
-                
-                // 3. Try Basic Formats
-                if (bestUrl == null) {
-                    val basicFormats = streamingData.optJSONArray("formats")
-                    if (basicFormats != null && basicFormats.length() > 0) {
-                        for (i in 0 until basicFormats.length()) {
-                            val format = basicFormats.getJSONObject(i)
-                            val streamUrl = format.optString("url")
-                            if (streamUrl.isNotBlank()) {
-                                bestUrl = streamUrl
-                                selectedMime = format.optString("mimeType", "audio/mp4")
-                                break
-                            }
-                        }
-                    }
-                }
-                
-                if (bestUrl != null) {
-                    Log.i(TAG, "RESOLVE_STREAM_SUCCESS | VIDEO_ID: $videoId | SELECTED_FORMAT_MIME: $selectedMime | SELECTED_FORMAT_BITRATE: $bestBitrate")
-                    Result.success(bestUrl)
-                } else {
-                    Log.e(TAG, "RESOLVE_STREAM_FAILED | VIDEO_ID: $videoId | ERROR: SOURCE_PROTECTED_OR_UNAVAILABLE")
-                    Result.failure(Exception("This track is protected by YouTube signature cipher and cannot be played directly."))
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "RESOLVE_STREAM_ERROR | VIDEO_ID: $videoId | ERROR: ${e.message}")
-                Result.failure(e)
+            val result = com.example.auramusic.engine.MusifyEngine.resolveStream(videoId)
+            result.map { streamInfo ->
+                activeStreamUserAgent = streamInfo.userAgent
+                Log.i(TAG, "RESOLVE_STREAM_SUCCESS | VIDEO_ID: $videoId | CLIENT: ${streamInfo.clientName} | BITRATE: ${streamInfo.bitrate}")
+                streamInfo.url
             }
         }
     }
@@ -293,8 +224,9 @@ class OnlineMusicProvider : MusicProvider {
 
     private suspend fun fetchFromYouTubeMusic(query: String): List<Song> {
         return try {
-            val apiKey = OwnerConfig.YOUTUBE_DATA_API_KEY.ifBlank { "AIzaSyC1In-Yq6I-Yq6I-Yq6I-Yq6I-Yq6I" }
-            val url = "https://music.youtube.com/youtubei/v1/search?alt=json&key=$apiKey"
+            val apiKey = getSanitizedApiKey()
+            val keyParam = if (apiKey != null) "&key=$apiKey" else ""
+            val url = "https://music.youtube.com/youtubei/v1/search?alt=json$keyParam"
             
             val body = JSONObject().apply {
                 put("context", JSONObject().apply {
@@ -499,8 +431,9 @@ class OnlineMusicProvider : MusicProvider {
 
     override suspend fun getRecommendations(): Result<List<Song>> = withContext(Dispatchers.IO) {
         try {
-            val apiKey = OwnerConfig.YOUTUBE_DATA_API_KEY.ifBlank { "AIzaSyC1In-Yq6I-Yq6I-Yq6I-Yq6I-Yq6I" }
-            val url = "https://music.youtube.com/youtubei/v1/browse?alt=json&key=$apiKey"
+            val apiKey = getSanitizedApiKey()
+            val keyParam = if (apiKey != null) "&key=$apiKey" else ""
+            val url = "https://music.youtube.com/youtubei/v1/browse?alt=json$keyParam"
             
             val body = JSONObject().apply {
                 put("context", JSONObject().apply {

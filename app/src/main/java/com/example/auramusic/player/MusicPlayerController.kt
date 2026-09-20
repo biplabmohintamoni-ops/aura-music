@@ -236,7 +236,7 @@ class MusicPlayerController(private val context: Context) {
                     _isBuffering.value = false
                     _isPlaying.value = false
                     bufferingTimeoutJob?.cancel()
-                    _playbackError.value = "Playback unavailable. ${error.message ?: "Source protected or blocked."}"
+                    _playbackError.value = "Playback unavailable for '${cur.title}'. Source requires authentication or is restricted."
                 }
             }
         }
@@ -288,6 +288,13 @@ class MusicPlayerController(private val context: Context) {
             
             withContext(Dispatchers.Main) {
                 result.onSuccess { streamUrl ->
+                    Log.i(TAG, "[PLAYBACK_TRACE] 1. resolveStream() returned non-null URL: TRUE")
+                    val host = try { java.net.URI(streamUrl).host } catch (e: Exception) { "unknown" }
+                    Log.i(TAG, "[PLAYBACK_TRACE] 2. Resolved URL Host: $host")
+                    Log.i(TAG, "[PLAYBACK_TRACE] 3. Associated User-Agent: ${OnlineMusicProvider.activeStreamUserAgent}")
+                    Log.i(TAG, "[PLAYBACK_TRACE] 4. Headers passed to Media3: DefaultHttpDataSource with User-Agent=${OnlineMusicProvider.activeStreamUserAgent}")
+                    Log.i(TAG, "[PLAYBACK_TRACE] 5. ExoPlayer preparing HTTP request to CDN...")
+
                     if (mediaController != null) {
                         prepareAndPlay(song, streamUrl)
                     } else {
@@ -295,7 +302,18 @@ class MusicPlayerController(private val context: Context) {
                         pendingPlayback = { prepareAndPlay(song, streamUrl) }
                     }
                 }.onFailure { error ->
-                    Log.e(TAG, "Stream resolution failed for $videoId: ${error.message}")
+                    Log.i(TAG, "[PLAYBACK_TRACE] 1. resolveStream() returned non-null URL: FALSE")
+                    Log.i(TAG, "[PLAYBACK_TRACE] 2. Resolved URL Host: N/A")
+                    Log.i(TAG, "[PLAYBACK_TRACE] 3. Associated User-Agent: N/A")
+                    Log.i(TAG, "[PLAYBACK_TRACE] 4. Headers passed to Media3: N/A")
+                    Log.i(TAG, "[PLAYBACK_TRACE] 5. ExoPlayer HTTP Request Sent: FALSE (Resolution failed before ExoPlayer received URL)")
+                    Log.i(TAG, "[PLAYBACK_TRACE] 6. CDN HTTP Status: N/A (No request sent to googlevideo.com)")
+                    Log.i(TAG, "[PLAYBACK_TRACE] 7. Received Bytes: FALSE")
+                    Log.i(TAG, "[PLAYBACK_TRACE] 8. ExoPlayer Exception: N/A (Failed at resolution layer: ${error.message})")
+                    Log.i(TAG, "[PLAYBACK_TRACE] 9. URL Expired: N/A")
+                    Log.i(TAG, "[PLAYBACK_TRACE] 10. Specific Headers Needed: N/A")
+
+                    bufferingTimeoutJob?.cancel()
                     handlePlaybackError(PlaybackException(error.message, error, PlaybackException.ERROR_CODE_IO_UNSPECIFIED))
                 }
             }

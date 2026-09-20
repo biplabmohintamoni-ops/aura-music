@@ -1,0 +1,6 @@
+{
+  "name": "Aura Music",
+  "description": "Clean premium dark music player with live catalog search, real playback streaming, synchronized lyrics, and equalizer.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

@@ -1,7 +1,21 @@
 package com.example.auramusic.data
 
+import android.content.Context
+import android.util.Log
+import com.example.auramusic.data.auth.AccountState
+import com.example.auramusic.data.auth.AuthRepository
+import com.example.auramusic.data.db.AuraDatabase
+import com.example.auramusic.data.db.FavoriteTrackEntity
+import com.example.auramusic.data.db.HistoryTrackEntity
+import com.example.auramusic.data.db.PlaylistEntity
+import com.example.auramusic.data.provider.AudioSource
+import com.example.auramusic.data.provider.CompositePlaybackSourceProvider
+import com.example.auramusic.data.provider.LrclibLyricsProvider
+import com.example.auramusic.data.provider.Lyrics
+import com.example.auramusic.data.provider.LyricsProvider
 import com.example.auramusic.data.provider.MusicProvider
 import com.example.auramusic.data.provider.OnlineMusicProvider
+import com.example.auramusic.data.provider.PlaybackSourceProvider
 import com.example.auramusic.model.Album
 import com.example.auramusic.model.Artist
 import com.example.auramusic.model.EqualizerPreset
@@ -13,15 +27,26 @@ import com.example.auramusic.model.MoodCategory
 import com.example.auramusic.model.MusicSearchResult
 import com.example.auramusic.model.Playlist
 import com.example.auramusic.model.Song
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
 
 class MusicRepository(
-    val musicProvider: MusicProvider = OnlineMusicProvider()
+    context: Context? = null,
+    val musicProvider: MusicProvider = OnlineMusicProvider(),
+    val sourceProvider: PlaybackSourceProvider = CompositePlaybackSourceProvider(),
+    val lyricsProvider: LyricsProvider = LrclibLyricsProvider()
 ) {
-    // Real recommendations & shelves
+    private val scope = CoroutineScope(Dispatchers.IO)
+    private val db = context?.let { AuraDatabase.getDatabase(it) }
+    private val authRepository = context?.let { AuthRepository.getInstance(it) }
+
+    val accountState: StateFlow<AccountState>? = authRepository?.accountState
+
     private val _recommendedSongs = MutableStateFlow<List<Song>>(emptyList())
     val recommendedSongs: StateFlow<List<Song>> = _recommendedSongs.asStateFlow()
 
@@ -34,19 +59,16 @@ class MusicRepository(
     private val _madeForYou = MutableStateFlow<List<Song>>(emptyList())
     val madeForYou: StateFlow<List<Song>> = _madeForYou.asStateFlow()
 
-    // Home category chips
     val homeCategories = listOf("Podcasts", "Romance", "Feel good", "Workout", "Chill", "Gaming", "Party")
     private val _selectedHomeCategory = MutableStateFlow("Feel good")
     val selectedHomeCategory: StateFlow<String> = _selectedHomeCategory.asStateFlow()
 
-    // Service loading and error states
     private val _isLoadingHome = MutableStateFlow(false)
     val isLoadingHome: StateFlow<Boolean> = _isLoadingHome.asStateFlow()
 
     private val _serviceError = MutableStateFlow<String?>(null)
     val serviceError: StateFlow<String?> = _serviceError.asStateFlow()
 
-    // Search
     private val _searchResults = MutableStateFlow(MusicSearchResult(query = ""))
     val searchResults: StateFlow<MusicSearchResult> = _searchResults.asStateFlow()
 
@@ -56,7 +78,6 @@ class MusicRepository(
     private val _searchError = MutableStateFlow<String?>(null)
     val searchError: StateFlow<String?> = _searchError.asStateFlow()
 
-    // Moods & Moments (matching screenshot subahbjhegm.png)
     val moodsAndMoments = listOf(
         MoodCategory("chill", "Chill", "Chill"),
         MoodCategory("commute", "Commute", "Commute"),
@@ -71,7 +92,6 @@ class MusicRepository(
         MoodCategory("workout", "Workout", "Workout Motivation")
     )
 
-    // Genres (matching screenshot subahbjhegm.png)
     val genres = listOf(
         GenreCategory("african", "African", "Afrobeats"),
         GenreCategory("arabic", "Arabic", "Arabic Music"),
@@ -84,11 +104,9 @@ class MusicRepository(
         GenreCategory("classical", "Classical", "Classical Masterpieces")
     )
 
-    // User Library - Liked songs
     private val _likedSongs = MutableStateFlow<List<Song>>(emptyList())
     val likedSongs: StateFlow<List<Song>> = _likedSongs.asStateFlow()
 
-    // User Playlists
     private val _playlists = MutableStateFlow<List<Playlist>>(
         listOf(
             Playlist(
@@ -98,48 +116,30 @@ class MusicRepository(
                 songIds = emptyList()
             ),
             Playlist(
-                id = "pl_summer",
-                title = "Hello, Summer! ☀️🍉",
-                description = "Seasonal soundtrack",
-                songIds = emptyList()
-            ),
-            Playlist(
-                id = "pl_top50",
-                title = "My top 50",
-                description = "Most listened tracks",
+                id = "pl_trending",
+                title = "Trending Mix 🌧️🎵",
+                description = "Rainy season top soundtracks",
                 songIds = emptyList()
             )
         )
     )
     val playlists: StateFlow<List<Playlist>> = _playlists.asStateFlow()
 
-    // Recently Played History
     private val _recentlyPlayed = MutableStateFlow<List<Song>>(emptyList())
     val recentlyPlayed: StateFlow<List<Song>> = _recentlyPlayed.asStateFlow()
 
-    // Google User Account
-    private val _googleUser = MutableStateFlow(
-        GoogleUser(
-            name = "",
-            email = "",
-            photoUrl = null,
-            isSignedIn = false
-        )
-    )
+    private val _googleUser = MutableStateFlow(GoogleUser(name = "", email = "", photoUrl = null, isSignedIn = false))
     val googleUser: StateFlow<GoogleUser> = _googleUser.asStateFlow()
 
-    // First Launch Welcome Screen state
     private val _isWelcomeDialogVisible = MutableStateFlow(true)
     val isWelcomeDialogVisible: StateFlow<Boolean> = _isWelcomeDialogVisible.asStateFlow()
 
-    // Music Recognition state (Echo Find)
     private val _isRecognizing = MutableStateFlow(false)
     val isRecognizing: StateFlow<Boolean> = _isRecognizing.asStateFlow()
 
     private val _recognizedSong = MutableStateFlow<Song?>(null)
     val recognizedSong: StateFlow<Song?> = _recognizedSong.asStateFlow()
 
-    // Equalizer Presets
     val equalizerPresets = listOf(
         EqualizerPreset("Flat", listOf(0f, 0f, 0f, 0f, 0f), 0f),
         EqualizerPreset("Bass Boost", listOf(6f, 4f, 1f, 0f, -1f), 60f),
@@ -150,36 +150,79 @@ class MusicRepository(
     )
 
     private val _equalizerSettings = MutableStateFlow(
-        EqualizerSettings(
-            currentPreset = "Flat",
-            bands = listOf(0f, 0f, 0f, 0f, 0f),
-            bassBoost = 15f,
-            surroundSound = 0f,
-            isEnabled = true
-        )
+        EqualizerSettings(currentPreset = "Flat", bands = listOf(0f, 0f, 0f, 0f, 0f), bassBoost = 15f, surroundSound = 0f, isEnabled = true)
     )
     val equalizerSettings: StateFlow<EqualizerSettings> = _equalizerSettings.asStateFlow()
 
-    suspend fun loadHomeData() {
-        _isLoadingHome.value = true
-        _serviceError.value = null
+    init {
+        loadHomeData()
 
-        val result = musicProvider.getRecommendations()
-        result.onSuccess { songs ->
-            _recommendedSongs.value = songs
-            _trendingSongs.value = songs.shuffled()
-            _quickPicks.value = songs.take(6)
-            _madeForYou.value = songs.reversed()
-            _isLoadingHome.value = false
-
-            // Pre-populate liked with a favorite track if empty
-            if (_likedSongs.value.isEmpty() && songs.isNotEmpty()) {
-                val first = songs.first().copy(isLiked = true)
-                _likedSongs.value = listOf(first)
+        db?.let { database ->
+            scope.launch {
+                database.favoritesDao().getAllFavorites().collect { entities ->
+                    _likedSongs.value = entities.map {
+                        Song(
+                            id = it.songId,
+                            title = it.title,
+                            artist = it.artist,
+                            album = it.album,
+                            durationMs = it.durationMs,
+                            coverUrl = it.coverUrl,
+                            youtubeVideoId = it.youtubeVideoId,
+                            isLiked = true
+                        )
+                    }
+                }
             }
-        }.onFailure { err ->
-            _serviceError.value = "Music service is currently unavailable."
-            _isLoadingHome.value = false
+
+            scope.launch {
+                database.historyDao().getRecentHistory().collect { entities ->
+                    _recentlyPlayed.value = entities.map {
+                        Song(
+                            id = it.songId,
+                            title = it.title,
+                            artist = it.artist,
+                            album = it.album,
+                            durationMs = it.durationMs,
+                            coverUrl = it.coverUrl,
+                            youtubeVideoId = it.youtubeVideoId
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    fun loadHomeData() {
+        scope.launch {
+            try {
+                _isLoadingHome.value = true
+                _serviceError.value = null
+
+                val trendingResult = musicProvider.search("trending")
+                if (trendingResult.isSuccess) {
+                    val songs = trendingResult.getOrThrow().songs
+                    if (songs.isNotEmpty()) {
+                        _trendingSongs.value = songs
+                        _recommendedSongs.value = songs.shuffled()
+                    }
+                }
+
+                val quickPicksResult = musicProvider.search("Top Hits")
+                if (quickPicksResult.isSuccess) {
+                    val songs = quickPicksResult.getOrThrow().songs
+                    if (songs.isNotEmpty()) {
+                        _quickPicks.value = songs
+                        _madeForYou.value = songs.shuffled()
+                    }
+                }
+
+            } catch (e: Exception) {
+                Log.e("MusicRepository", "Failed to force load live metadata streams", e)
+                _serviceError.value = "Failed to load unblocked cloud shelves."
+            } finally {
+                _isLoadingHome.value = false
+            }
         }
     }
 
@@ -197,43 +240,70 @@ class MusicRepository(
 
         _isSearching.value = true
         _searchError.value = null
-
         val result = musicProvider.search(query)
         result.onSuccess { searchData ->
             _searchResults.value = searchData
             _isSearching.value = false
         }.onFailure { err ->
-            _searchError.value = "Music service is currently unavailable."
+            _searchError.value = err.message ?: "Music service is currently unavailable."
             _isSearching.value = false
         }
     }
 
+    suspend fun searchSongs(query: String) = searchMusic(query)
+
+    suspend fun resolveTrackStream(song: Song): Result<AudioSource> {
+        if (song.audioUrl.isNotBlank()) {
+            return Result.success(
+                AudioSource(
+                    url = song.audioUrl,
+                    userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
+                    format = "audio/mp4",
+                    bitrateKbps = 320,
+                    isLocal = false
+                )
+            )
+        }
+        return sourceProvider.resolve(song)
+    }
+
     suspend fun getLyricsForSong(song: Song): Result<List<LyricLine>> {
-        return musicProvider.getLyrics(
-            songId = song.id,
-            title = song.title,
-            artist = song.artist,
-            durationSec = (song.durationMs / 1000).toInt()
-        )
+        val result = lyricsProvider.getLyrics(song)
+        return result.map { lyrics ->
+            lyrics.syncedLyrics.map { LyricLine(timestampMs = it.timeMs, text = it.text) }
+        }
     }
 
     fun toggleLikeSong(song: Song) {
         val currentLiked = _likedSongs.value.toMutableList()
         val index = currentLiked.indexOfFirst { it.id == song.id }
-        if (index >= 0) {
-            currentLiked.removeAt(index)
-        } else {
-            currentLiked.add(song.copy(isLiked = true))
-        }
-        _likedSongs.value = currentLiked
+        val isLiked = index >= 0
 
-        _playlists.update { list ->
-            list.map { pl ->
-                if (pl.id == "pl_liked") {
-                    pl.copy(songIds = currentLiked.map { it.id })
-                } else pl
+        if (isLiked) {
+            currentLiked.removeAt(index)
+            db?.let { database ->
+                scope.launch { database.favoritesDao().deleteFavorite(song.id) }
+            }
+        } else {
+            val newLiked = song.copy(isLiked = true)
+            currentLiked.add(newLiked)
+            db?.let { database ->
+                scope.launch {
+                    database.favoritesDao().insertFavorite(
+                        FavoriteTrackEntity(
+                            songId = song.id,
+                            title = song.title,
+                            artist = song.artist,
+                            album = song.album,
+                            coverUrl = song.coverUrl ?: "",
+                            durationMs = song.durationMs,
+                            youtubeVideoId = song.youtubeVideoId
+                        )
+                    )
+                }
             }
         }
+        _likedSongs.value = currentLiked
     }
 
     fun isSongLiked(songId: String): Boolean {
@@ -244,6 +314,22 @@ class MusicRepository(
         val updated = _recentlyPlayed.value.filterNot { it.id == song.id }.toMutableList()
         updated.add(0, song)
         _recentlyPlayed.value = updated.take(25)
+
+        db?.let { database ->
+            scope.launch {
+                database.historyDao().insertHistory(
+                    HistoryTrackEntity(
+                        songId = song.id,
+                        title = song.title,
+                        artist = song.artist,
+                        album = song.album,
+                        coverUrl = song.coverUrl ?: "",
+                        durationMs = song.durationMs,
+                        youtubeVideoId = song.youtubeVideoId
+                    )
+                )
+            }
+        }
     }
 
     fun createPlaylist(title: String, description: String = "") {
@@ -255,10 +341,24 @@ class MusicRepository(
             isUserCreated = true
         )
         _playlists.value = _playlists.value + newPl
+        db?.let { database ->
+            scope.launch {
+                database.playlistDao().insertPlaylist(
+                    PlaylistEntity(
+                        playlistId = newId,
+                        title = title,
+                        description = description
+                    )
+                )
+            }
+        }
     }
 
     fun deletePlaylist(playlistId: String) {
         _playlists.value = _playlists.value.filterNot { it.id == playlistId }
+        db?.let { database ->
+            scope.launch { database.playlistDao().deletePlaylist(playlistId) }
+        }
     }
 
     fun addSongToPlaylist(playlistId: String, songId: String) {
@@ -281,8 +381,8 @@ class MusicRepository(
         }
     }
 
-    // Authentic Google Sign-In
     fun signInWithGoogle(name: String, email: String, photoUrl: String? = null) {
+        authRepository?.signInWithGoogle("google_token", name, email, photoUrl)
         _googleUser.value = GoogleUser(
             name = name,
             email = email,
@@ -292,6 +392,7 @@ class MusicRepository(
     }
 
     fun signOutGoogle() {
+        authRepository?.signOut()
         _googleUser.value = GoogleUser(
             name = "",
             email = "",
@@ -300,7 +401,6 @@ class MusicRepository(
         )
     }
 
-    // Welcome Dialog
     fun dismissWelcomeDialog() {
         _isWelcomeDialogVisible.value = false
     }
@@ -309,7 +409,6 @@ class MusicRepository(
         _isWelcomeDialogVisible.value = true
     }
 
-    // Music Recognition
     fun startRecognizing() {
         _isRecognizing.value = true
         _recognizedSong.value = null
@@ -320,7 +419,6 @@ class MusicRepository(
         _recognizedSong.value = song
     }
 
-    // Equalizer
     fun setEqualizerPreset(preset: EqualizerPreset) {
         _equalizerSettings.value = _equalizerSettings.value.copy(
             currentPreset = preset.name,

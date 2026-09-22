@@ -6,7 +6,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
-import com.example.auramusic.viewmodel.MusicViewModel
+import com.example.auramusic.ui.viewmodel.MusicViewModel
 
 @Composable
 fun SettingsDialog(

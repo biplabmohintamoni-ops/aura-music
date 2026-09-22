@@ -118,6 +118,11 @@ object MusifyEngine {
     private var cachedVisitorData: String? = null
     private val urlCache = ConcurrentHashMap<String, Pair<String, Long>>() // key -> (url, expiryMs)
 
+    fun clearCache() {
+        urlCache.clear()
+        Log.i(TAG, "MusifyEngine stream URL cache cleared")
+    }
+
     /**
      * Extracts visitorData from sw.js_data as in Musify's video_controller.dart
      */
@@ -482,7 +487,27 @@ object MusifyEngine {
             }
         }
 
+        // Try Piped API Extraction Service as internal secondary fallback
+        Log.i(TAG, "ProxyManager failed. Attempting Piped API extraction service for $videoId...")
+        val pipedResult = PipedExtractionService.extractAudioStream(videoId)
+        if (pipedResult.isSuccess) {
+            val pipedSource = pipedResult.getOrThrow()
+            val streamInfo = AudioStreamInfo(
+                url = pipedSource.url,
+                container = pipedSource.format,
+                codec = "aac",
+                bitrate = pipedSource.bitrateKbps * 1000,
+                qualityName = quality.name,
+                clientName = "PIPED_PROXY",
+                userAgent = pipedSource.userAgent
+            )
+            urlCache[videoId] = Pair(streamInfo.url, System.currentTimeMillis() + 4 * 3600 * 1000L)
+            Log.i(TAG, "MUSIFY_RESOLVE_SUCCESS via PIPED_PROXY for video $videoId")
+            return@withContext Result.success(streamInfo)
+        }
+
         Log.e(TAG, "MUSIFY_RESOLVE_FAILED | STATUS: $lastPlayabilityStatus | REASON: $lastPlayabilityReason")
         Result.failure(Exception("YouTube InnerTube response: $lastPlayabilityStatus ($lastPlayabilityReason)"))
     }
 }
+

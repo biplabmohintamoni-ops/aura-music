@@ -77,7 +77,7 @@ import com.example.auramusic.data.provider.OwnerConfig
 import com.example.auramusic.ui.theme.AuraAccentPurple
 import com.example.auramusic.ui.theme.LocalAuraTheme
 import com.example.auramusic.ui.theme.LocalDynamicAccent
-import com.example.auramusic.viewmodel.MusicViewModel
+import com.example.auramusic.ui.viewmodel.MusicViewModel
 
 @Composable
 fun SettingsScreen(

@@ -32,7 +32,10 @@ data class Song(
     val isExplicit: Boolean = false,
     val primaryAuraColor: Long = 0xFF1DB954,
     val secondaryAuraColor: Long = 0xFFE4E4E7
-)
+) {
+    val url: String get() = audioUrl
+    val thumbnailUrl: String get() = coverUrl ?: ""
+}
 
 data class Album(
     val id: String,

@@ -42,7 +42,7 @@ import com.example.auramusic.ui.screens.LyricsSheet
 import com.example.auramusic.ui.screens.SearchScreen
 import com.example.auramusic.ui.screens.SettingsDialog
 import com.example.auramusic.ui.theme.LocalAuraTheme
-import com.example.auramusic.viewmodel.MusicViewModel
+import com.example.auramusic.ui.viewmodel.MusicViewModel
 
 @Composable
 fun AuraApp(

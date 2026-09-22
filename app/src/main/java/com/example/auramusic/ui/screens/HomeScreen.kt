@@ -85,7 +85,7 @@ fun HomeScreen(
             .background(AuraBackground)
             .testTag("home_screen")
     ) {
-        // Top Header matching makabm.png
+        // App Header Section Layout Layout
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -102,67 +102,26 @@ fun HomeScreen(
             )
 
             Row(verticalAlignment = Alignment.CenterVertically) {
-                IconButton(
-                    onClick = onOpenHistory,
-                    modifier = Modifier.size(36.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.History,
-                        contentDescription = "History",
-                        tint = AuraTextPrimary,
-                        modifier = Modifier.size(20.dp)
-                    )
+                IconButton(onClick = onOpenHistory, modifier = Modifier.size(36.dp)) {
+                    Icon(imageVector = Icons.Default.History, contentDescription = "History", tint = AuraTextPrimary, modifier = Modifier.size(20.dp))
                 }
-
-                IconButton(
-                    onClick = onOpenEqualizer,
-                    modifier = Modifier.size(36.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Equalizer,
-                        contentDescription = "Equalizer",
-                        tint = AuraTextPrimary,
-                        modifier = Modifier.size(20.dp)
-                    )
+                IconButton(onClick = onOpenEqualizer, modifier = Modifier.size(36.dp)) {
+                    Icon(imageVector = Icons.Default.Equalizer, contentDescription = "Equalizer", tint = AuraTextPrimary, modifier = Modifier.size(20.dp))
                 }
-
-                IconButton(
-                    onClick = onOpenProfile,
-                    modifier = Modifier.size(36.dp)
-                ) {
+                IconButton(onClick = onOpenProfile, modifier = Modifier.size(36.dp)) {
                     if (googleUser.isSignedIn && !googleUser.photoUrl.isNullOrBlank()) {
-                        AsyncImage(
-                            model = googleUser.photoUrl,
-                            contentDescription = "Profile",
-                            modifier = Modifier
-                                .size(24.dp)
-                                .clip(CircleShape)
-                        )
+                        AsyncImage(model = googleUser.photoUrl, contentDescription = "Profile", modifier = Modifier.size(24.dp).clip(CircleShape))
                     } else {
-                        Icon(
-                            imageVector = Icons.Default.Person,
-                            contentDescription = "Profile",
-                            tint = AuraTextPrimary,
-                            modifier = Modifier.size(20.dp)
-                        )
+                        Icon(imageVector = Icons.Default.Person, contentDescription = "Profile", tint = AuraTextPrimary, modifier = Modifier.size(20.dp))
                     }
                 }
-
-                IconButton(
-                    onClick = onOpenSettings,
-                    modifier = Modifier.size(36.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Settings,
-                        contentDescription = "Settings",
-                        tint = AuraTextPrimary,
-                        modifier = Modifier.size(20.dp)
-                    )
+                IconButton(onClick = onOpenSettings, modifier = Modifier.size(36.dp)) {
+                    Icon(imageVector = Icons.Default.Settings, contentDescription = "Settings", tint = AuraTextPrimary, modifier = Modifier.size(20.dp))
                 }
             }
         }
 
-        // Horizontal Category Chips
+        // Horizontal Category Row Configuration
         LazyRow(
             modifier = Modifier.fillMaxWidth(),
             contentPadding = PaddingValues(horizontal = 16.dp),
@@ -170,14 +129,8 @@ fun HomeScreen(
         ) {
             items(categories) { category ->
                 val isSelected = category == selectedCategory
-                val bgAnim by animateColorAsState(
-                    targetValue = if (isSelected) AuraAccentPill else AuraSurfaceVariant,
-                    label = "chip_bg"
-                )
-                val textAnim by animateColorAsState(
-                    targetValue = if (isSelected) Color.Black else AuraTextPrimary,
-                    label = "chip_text"
-                )
+                val bgAnim by animateColorAsState(targetValue = if (isSelected) AuraAccentPill else AuraSurfaceVariant, label = "chip_bg")
+                val textAnim by animateColorAsState(targetValue = if (isSelected) Color.Black else AuraTextPrimary, label = "chip_text")
 
                 Box(
                     modifier = Modifier
@@ -188,12 +141,7 @@ fun HomeScreen(
                         .padding(horizontal = 16.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(
-                        text = category,
-                        fontSize = 13.sp,
-                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                        color = textAnim
-                    )
+                    Text(text = category, fontSize = 13.sp, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal, color = textAnim)
                 }
             }
         }
@@ -201,326 +149,140 @@ fun HomeScreen(
         Spacer(modifier = Modifier.height(14.dp))
 
         if (isLoading) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(32.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                CircularProgressIndicator(color = AuraPrimary)
+            Box(modifier = Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator(color = AuraAccentPill)
             }
         } else {
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(bottom = 120.dp)
-            ) {
-                // Featured Portrait Banner Card Carousel (matching makabm.png)
+            LazyColumn(modifier = Modifier.fillMaxWidth().weight(1f), contentPadding = PaddingValues(bottom = 80.dp)) {
+                // Production Feature Seasonal Gradient Banner Card
                 item {
-                    val featuredSong = recommendedSongs.firstOrNull()
-                    if (featuredSong != null) {
-                        FeaturedPortraitCard(
-                            song = featuredSong,
-                            onClick = { onPlaySong(featuredSong, recommendedSongs) }
-                        )
-                        Spacer(modifier = Modifier.height(24.dp))
-                    }
-                }
-
-                // Section: PLAYLISTS FOR THE SEASON
-                item {
-                    Text(
-                        text = "PLAYLISTS FOR THE SEASON",
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = AuraTextMuted,
-                        letterSpacing = 1.sp,
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)
-                    )
-                    Text(
-                        text = "Hello, Summer! ☀️🍉",
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = AuraTextPrimary,
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 2.dp)
-                    )
-                    Spacer(modifier = Modifier.height(10.dp))
-
-                    LazyRow(
-                        contentPadding = PaddingValues(horizontal = 16.dp),
-                        horizontalArrangement = Arrangement.spacedBy(14.dp)
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 8.dp)
+                            .height(140.dp)
+                            .clip(RoundedCornerShape(24.dp))
+                            .background(Brush.horizontalGradient(colors = listOf(Color(0xFF1E3A8A), Color(0xFF0D9488))))
+                            .clickable { if (trendingSongs.isNotEmpty()) onPlaySong(trendingSongs.first(), trendingSongs) }
                     ) {
-                        items(recommendedSongs.take(8)) { song ->
-                            SmallSquareSongCard(
-                                song = song,
-                                onClick = { onPlaySong(song, recommendedSongs) }
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(24.dp))
-                }
-
-                // Section: Quick Picks (Vertical list items)
-                item {
-                    Text(
-                        text = "Quick Picks",
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = AuraTextPrimary,
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                }
-
-                items(quickPicks) { song ->
-                    CompactSongListItem(
-                        song = song,
-                        onClick = { onPlaySong(song, quickPicks) },
-                        onMenuClick = { onSongMenu(song) }
-                    )
-                }
-
-                // Section: Trending Now
-                item {
-                    Spacer(modifier = Modifier.height(20.dp))
-                    Text(
-                        text = "Trending Now",
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = AuraTextPrimary,
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)
-                    )
-                    Spacer(modifier = Modifier.height(10.dp))
-
-                    LazyRow(
-                        contentPadding = PaddingValues(horizontal = 16.dp),
-                        horizontalArrangement = Arrangement.spacedBy(14.dp)
-                    ) {
-                        items(trendingSongs.take(8)) { song ->
-                            SmallSquareSongCard(
-                                song = song,
-                                onClick = { onPlaySong(song, trendingSongs) }
-                            )
+                        Column(modifier = Modifier.fillMaxSize().padding(20.dp), verticalArrangement = Arrangement.Center) {
+                            Text(text = "Trending Mix 🌧️🎵", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Text(text = "Rainy season top soundtracks", fontSize = 14.sp, color = Color.White.copy(alpha = 0.8f), maxLines = 2, overflow = TextOverflow.Ellipsis)
                         }
                     }
                 }
-            }
-        }
-    }
+
+                // Horizontal Music Items Shelf Grid
+                if (trendingSongs.isNotEmpty()) {
+                    item {
+                        Text(text = "Trending Mix Tracks", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = AuraTextPrimary, modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp))
+                        LazyRow(contentPadding = PaddingValues(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                            items(trendingSongs) { song ->
+                                Column(modifier = Modifier.width(130.dp).clickable { onPlaySong(song, trendingSongs) }) {
+                                    Box(modifier = Modifier.size(130.dp).clip(RoundedCornerShape(16.dp)).background(AuraSurfaceElevated)) {
+                                        if (!song.coverUrl.isNullOrBlank()) {
+                                            AsyncImage(model = song.coverUrl, contentDescription = song.title, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+                                        } else {
+                                            Icon(imageVector = Icons.Default.MusicNote, contentDescription = null, tint = AuraTextMuted, modifier = Modifier.size(40.dp).align(Alignment.Center))
+                                        }
+                                    }
+                                    Spacer(modifier = Modifier.height(6.dp))
+Text(
+    text = song.title,
+    fontSize = 14.sp,
+    fontWeight = FontWeight.Medium,
+    color = AuraTextPrimary,
+    maxLines = 1,
+    overflow = TextOverflow.Ellipsis
+)
+Text(
+    text = song.artist,
+    fontSize = 12.sp,
+    color = AuraTextSecondary,
+    maxLines = 1,
+    overflow = TextOverflow.Ellipsis
+)
+}
+}
+}
+}
 }
 
-@Composable
-private fun FeaturedPortraitCard(
-    song: Song,
-    onClick: () -> Unit
-) {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp)
-            .height(200.dp)
-            .clip(RoundedCornerShape(20.dp))
-            .background(AuraSurfaceElevated)
-            .border(1.dp, AuraBorder, RoundedCornerShape(20.dp))
-            .clickable { onClick() }
-    ) {
-        if (!song.coverUrl.isNullOrBlank()) {
-            AsyncImage(
-                model = song.coverUrl,
-                contentDescription = song.title,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize()
-            )
-        }
-
-        // Dark gradient overlay
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(
-                    Brush.verticalGradient(
-                        colors = listOf(Color.Transparent, Color(0xCC0A0A0C), Color(0xF00A0A0C)),
-                        startY = 50f
-                    )
-                )
-        )
-
-        // Content
-        Column(
-            modifier = Modifier
-                .align(Alignment.BottomStart)
-                .padding(18.dp)
-        ) {
-            Text(
-                text = "FEATURED TRACK",
-                fontSize = 11.sp,
-                fontWeight = FontWeight.Bold,
-                color = AuraPrimary,
-                letterSpacing = 1.sp
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = song.title,
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Bold,
-                color = AuraTextPrimary,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-            Spacer(modifier = Modifier.height(2.dp))
-            Text(
-                text = song.artist,
-                fontSize = 13.sp,
-                color = AuraTextSecondary,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-        }
-
-        // Play Button circle on top right
-        Box(
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .padding(18.dp)
-                .size(42.dp)
-                .clip(CircleShape)
-                .background(AuraTextPrimary),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = Icons.Default.PlayArrow,
-                contentDescription = "Play",
-                tint = Color.Black,
-                modifier = Modifier.size(24.dp)
-            )
-        }
-    }
-}
-
-@Composable
-private fun SmallSquareSongCard(
-    song: Song,
-    onClick: () -> Unit
-) {
-    Column(
-        modifier = Modifier
-            .width(135.dp)
-            .clickable { onClick() }
-    ) {
-        Box(
-            modifier = Modifier
-                .size(135.dp)
-                .clip(RoundedCornerShape(14.dp))
-                .background(AuraSurfaceElevated)
-                .border(1.dp, AuraBorder, RoundedCornerShape(14.dp)),
-            contentAlignment = Alignment.Center
-        ) {
-            if (!song.coverUrl.isNullOrBlank()) {
-                AsyncImage(
-                    model = song.coverUrl,
-                    contentDescription = song.title,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier.fillMaxSize()
-                )
-            } else {
-                Icon(
-                    imageVector = Icons.Default.MusicNote,
-                    contentDescription = null,
-                    tint = AuraTextMuted,
-                    modifier = Modifier.size(36.dp)
-                )
-            }
-        }
-
-        Spacer(modifier = Modifier.height(8.dp))
-
+// Vertical Listing Rows Block: Quick Picks
+if (quickPicks.isNotEmpty()) {
+    item {
         Text(
-            text = song.title,
-            fontSize = 13.sp,
-            fontWeight = FontWeight.SemiBold,
+            text = "Quick Picks",
+            fontSize = 18.sp,
+            fontWeight = FontWeight.Bold,
             color = AuraTextPrimary,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
-        )
-        Spacer(modifier = Modifier.height(2.dp))
-        Text(
-            text = song.artist,
-            fontSize = 11.sp,
-            color = AuraTextSecondary,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
         )
     }
-}
-
-@Composable
-private fun CompactSongListItem(
-    song: Song,
-    onClick: () -> Unit,
-    onMenuClick: () -> Unit
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { onClick() }
-            .padding(horizontal = 16.dp, vertical = 6.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Box(
+    items(quickPicks.take(5)) { song ->
+        Row(
             modifier = Modifier
-                .size(48.dp)
-                .clip(RoundedCornerShape(10.dp))
-                .background(AuraSurfaceElevated),
-            contentAlignment = Alignment.Center
+                .fillMaxWidth()
+                .clickable { onPlaySong(song, quickPicks) }
+                .padding(horizontal = 16.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            if (!song.coverUrl.isNullOrBlank()) {
-                AsyncImage(
-                    model = song.coverUrl,
-                    contentDescription = song.title,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier.fillMaxSize()
-                )
-            } else {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier
+                        .size(48.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(AuraSurfaceElevated)
+                ) {
+                    if (!song.coverUrl.isNullOrBlank()) {
+                        AsyncImage(
+                            model = song.coverUrl,
+                            contentDescription = song.title,
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Crop
+                        )
+                    } else {
+                        Icon(
+                            imageVector = Icons.Default.MusicNote,
+                            contentDescription = null,
+                            tint = AuraTextMuted,
+                            modifier = Modifier
+                                .size(20.dp)
+                                .align(Alignment.Center)
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.width(12.dp))
+                Column {
+                    Text(
+                        text = song.title,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = AuraTextPrimary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Text(
+                        text = song.artist,
+                        fontSize = 12.sp,
+                        color = AuraTextSecondary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
+            IconButton(onClick = { onSongMenu(song) }) {
                 Icon(
-                    imageVector = Icons.Default.MusicNote,
-                    contentDescription = null,
-                    tint = AuraTextMuted,
-                    modifier = Modifier.size(24.dp)
+                    imageVector = Icons.Default.MoreVert,
+                    contentDescription = "Menu",
+                    tint = AuraTextSecondary
                 )
             }
         }
-
-        Spacer(modifier = Modifier.width(14.dp))
-
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = song.title,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = AuraTextPrimary,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-            Spacer(modifier = Modifier.height(2.dp))
-            Text(
-                text = song.artist,
-                fontSize = 12.sp,
-                color = AuraTextSecondary,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-        }
-
-        IconButton(
-            onClick = onMenuClick,
-            modifier = Modifier.size(36.dp)
-        ) {
-            Icon(
-                imageVector = Icons.Default.MoreVert,
-                contentDescription = "Options",
-                tint = AuraTextSecondary,
-                modifier = Modifier.size(18.dp)
-            )
-        }
     }
+}
+}
+}
 }

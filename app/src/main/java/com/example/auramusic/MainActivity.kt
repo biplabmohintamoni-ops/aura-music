@@ -10,7 +10,7 @@ import androidx.compose.runtime.getValue
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.auramusic.ui.navigation.AuraApp
 import com.example.auramusic.ui.theme.AuraMusicTheme
-import com.example.auramusic.viewmodel.MusicViewModel
+import com.example.auramusic.ui.viewmodel.MusicViewModel
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
